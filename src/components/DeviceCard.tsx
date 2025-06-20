@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Laptop, DoorClosed, DoorOpen, Garage, Lock, Unlock } from 'lucide-react';
+import { Laptop, DoorClosed, DoorOpen, Car, Lock, Unlock } from 'lucide-react';
 
 interface DeviceCardProps {
   id: string;
@@ -20,7 +19,7 @@ const DeviceCard = ({ id, name, type, isLocked, onAuthenticate }: DeviceCardProp
       case 'door':
         return isLocked ? <DoorClosed className="h-12 w-12" /> : <DoorOpen className="h-12 w-12" />;
       case 'garage':
-        return <Garage className="h-12 w-12" />;
+        return <Car className="h-12 w-12" />;
       default:
         return <Lock className="h-12 w-12" />;
     }
