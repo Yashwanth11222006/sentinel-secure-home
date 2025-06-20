@@ -5,14 +5,17 @@ interface User {
   id: string;
   email: string;
   name: string;
+  faceData?: string; // Base64 encoded face image for biometric matching
+  enrollmentDate?: Date;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, faceData?: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
+  updateFaceData: (faceData: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,33 +39,53 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - in real app, this would call an API
-    if (password.length >= 6) {
-      const mockUser = {
-        id: '1',
-        email,
-        name: email.split('@')[0]
-      };
-      setUser(mockUser);
-      localStorage.setItem('ai-guardian-user', JSON.stringify(mockUser));
+    // Mock authentication - check if user exists in localStorage
+    const existingUsers = JSON.parse(localStorage.getItem('ai-guardian-users') || '[]');
+    const foundUser = existingUsers.find((u: User) => u.email === email);
+    
+    if (foundUser && password.length >= 6) {
+      setUser(foundUser);
+      localStorage.setItem('ai-guardian-user', JSON.stringify(foundUser));
       return true;
     }
     return false;
   };
 
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    // Mock registration
+  const register = async (name: string, email: string, password: string, faceData?: string): Promise<boolean> => {
     if (password.length >= 6) {
-      const mockUser = {
-        id: '1',
+      const newUser: User = {
+        id: Date.now().toString(),
         email,
-        name
+        name,
+        faceData,
+        enrollmentDate: new Date()
       };
-      setUser(mockUser);
-      localStorage.setItem('ai-guardian-user', JSON.stringify(mockUser));
+      
+      // Save to users list
+      const existingUsers = JSON.parse(localStorage.getItem('ai-guardian-users') || '[]');
+      existingUsers.push(newUser);
+      localStorage.setItem('ai-guardian-users', JSON.stringify(existingUsers));
+      
+      setUser(newUser);
+      localStorage.setItem('ai-guardian-user', JSON.stringify(newUser));
       return true;
     }
     return false;
+  };
+
+  const updateFaceData = (faceData: string) => {
+    if (user) {
+      const updatedUser = { ...user, faceData, enrollmentDate: new Date() };
+      setUser(updatedUser);
+      localStorage.setItem('ai-guardian-user', JSON.stringify(updatedUser));
+      
+      // Update in users list
+      const existingUsers = JSON.parse(localStorage.getItem('ai-guardian-users') || '[]');
+      const updatedUsers = existingUsers.map((u: User) => 
+        u.id === user.id ? updatedUser : u
+      );
+      localStorage.setItem('ai-guardian-users', JSON.stringify(updatedUsers));
+    }
   };
 
   const logout = () => {
@@ -75,7 +98,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     login,
     register,
     logout,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    updateFaceData
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

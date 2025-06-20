@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Shield, Mail, Lock, Eye, EyeOff, User, Camera } from 'lucide-react';
+import FaceEnrollmentModal from '../components/FaceEnrollmentModal';
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -13,29 +14,35 @@ const RegisterPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showFaceEnrollment, setShowFaceEnrollment] = useState(false);
+  const [faceData, setFaceData] = useState<string>('');
   
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    if (!faceData) {
+      setShowFaceEnrollment(true);
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const success = await register(name, email, password);
+      const success = await register(name, email, password, faceData);
       if (success) {
         navigate('/dashboard');
       } else {
@@ -48,6 +55,15 @@ const RegisterPage = () => {
     }
   };
 
+  const handleFaceDataCaptured = (capturedFaceData: string) => {
+    setFaceData(capturedFaceData);
+    setShowFaceEnrollment(false);
+    // Auto-submit the form after face enrollment
+    setTimeout(() => {
+      handleSubmit(new Event('submit') as any);
+    }, 500);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -57,10 +73,10 @@ const RegisterPage = () => {
             <Shield className="h-16 w-16 text-blue-500" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">AI-GUARDIAN</h1>
-          <p className="text-gray-400">Create Your Account</p>
+          <p className="text-gray-400">Create Your Secure Account</p>
         </div>
 
-        {/* Register Form */}
+        {/* Registration Form */}
         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
@@ -151,6 +167,28 @@ const RegisterPage = () => {
               </div>
             </div>
 
+            {/* Biometric Enrollment Status */}
+            <div className={`p-4 rounded-lg border ${
+              faceData 
+                ? 'bg-green-500/10 border-green-500/30 text-green-400' 
+                : 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+            }`}>
+              <div className="flex items-center space-x-3">
+                <Camera className="h-5 w-5" />
+                <div>
+                  <p className="font-medium">
+                    {faceData ? 'Biometric Enrolled' : 'Biometric Enrollment Required'}
+                  </p>
+                  <p className="text-xs opacity-80">
+                    {faceData 
+                      ? 'Your face data has been captured for secure authentication.' 
+                      : 'Complete registration to set up biometric authentication.'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
@@ -161,8 +199,10 @@ const RegisterPage = () => {
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                   <span>Creating Account...</span>
                 </div>
+              ) : faceData ? (
+                'Complete Registration'
               ) : (
-                'Create Account'
+                'Continue to Biometric Setup'
               )}
             </button>
           </form>
@@ -175,8 +215,21 @@ const RegisterPage = () => {
               </Link>
             </p>
           </div>
+
+          <div className="mt-6 pt-6 border-t border-gray-700">
+            <p className="text-xs text-gray-500 text-center">
+              By registering, you agree to secure biometric data processing for authentication purposes.
+            </p>
+          </div>
         </div>
       </div>
+
+      <FaceEnrollmentModal
+        isOpen={showFaceEnrollment}
+        onClose={() => setShowFaceEnrollment(false)}
+        onFaceDataCaptured={handleFaceDataCaptured}
+        userName={name}
+      />
     </div>
   );
 };
